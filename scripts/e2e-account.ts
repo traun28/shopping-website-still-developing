@@ -18,20 +18,20 @@ async function main() {
   const addrSvc = await import("@/services/address.service");
   const a1 = await addrSvc.createAddress(userId, {
     fullName: "Account Tester", phone: "9876543210", addressLine1: "1 Main St",
-    city: "Bengaluru", state: "Karnataka", postalCode: "560001", country: "IN", label: "HOME", isDefault: false,
+    city: "Bengaluru", state: "Karnataka", postalCode: "560001", country: "IN", addressType: "HOME", isDefaultShipping: false, isDefaultBilling: false,
   });
   const a2 = await addrSvc.createAddress(userId, {
     fullName: "Account Tester Office", phone: "9876543211", addressLine1: "22 Tech Park",
-    city: "Mumbai", state: "Maharashtra", postalCode: "400001", country: "IN", label: "WORK", isDefault: false,
+    city: "Mumbai", state: "Maharashtra", postalCode: "400001", country: "IN", addressType: "WORK", isDefaultShipping: false, isDefaultBilling: false,
   });
   const { addresses: ignoreMe } = await import("@/db/schema");
   void ignoreMe;
   let list = await addrSvc.listAddresses(userId);
   console.log("ADDRESSES created:", list.length, "| first is default (auto):", list[0].isDefault);
-  await addrSvc.setDefaultAddress(userId, a2.id);
+  await addrSvc.setDefaultAddress(userId, a2.address.id);
   list = await addrSvc.listAddresses(userId);
   const defaults = list.filter((a) => a.isDefault);
-  console.log("DEFAULT flip:", defaults.length === 1 && defaults[0].id === a2.id ? "PASS" : "FAIL");
+  console.log("DEFAULT flip:", defaults.length === 1 && defaults[0].id === a2.address.id ? "PASS" : "FAIL");
 
   /* ─── Wishlist (real DB product) ─── */
   const wlSvc = await import("@/services/wishlist.service");
@@ -59,7 +59,7 @@ async function main() {
   /* ─── Preferences ─── */
   const prefSvc = await import("@/services/preferences.service");
   const before = await prefSvc.getPreferences(userId);
-  await prefSvc.savePreferences(userId, { marketingEmails: false, orderNotifications: true, promotionalNotifications: true, language: "hi-IN", currency: "INR" });
+  await prefSvc.savePreferences(userId, { marketingEmails: false, orderNotifications: true, promotionalNotifications: true, language: "hi-IN", currency: "INR", measurementSystem: "METRIC" });
   const after = await prefSvc.getPreferences(userId);
   console.log("PREFERENCES:", before.language, "→", after.language, "| promo:", after.promotionalNotifications ? "ON" : "OFF");
 

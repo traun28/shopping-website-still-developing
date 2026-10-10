@@ -4,16 +4,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ShoppingBag } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ComingSoonDialog } from "@/components/layout/coming-soon-dialog";
 import { WishlistButton } from "@/components/storefront/wishlist-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Price } from "@/components/ui/price";
 import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { Rating } from "@/components/ui/rating";
-import { storefrontContent } from "@/content/storefront";
 import { STOREFRONT_EVENTS, trackStorefrontEvent } from "@/lib/analytics";
-import { addProductToCart } from "@/lib/cart/add-to-cart";
+import { addProductToCart } from "@/lib/cart/client";
+import { useCart } from "@/components/cart/cart-provider";
+import { notify } from "@/lib/toast";
+import type { RecommendationAttribution } from "@/services/cart/types";
 import { galleryImagesFor } from "@/lib/catalog/gallery";
 import type { PdpProductDTO } from "@/lib/catalog/pdp-dto";
 import { MAX_QUANTITY, clampQuantity } from "@/lib/catalog/quantity";
@@ -70,6 +71,7 @@ export function ProductExperience({
   categoryLabel,
   browseHref,
   children,
+  recommendation = null,
 }: {
   product: ProductExperienceProduct;
   initialSelection: Selection;
@@ -78,13 +80,14 @@ export function ProductExperience({
   /** "Browse Similar Products" target when nothing can be ordered. */
   browseHref: string;
   children?: ReactNode;
+  recommendation?: RecommendationAttribution | null;
 }) {
   const router = useRouter();
+  const cart = useCart();
   const [selection, setSelection] = useState<Selection>(initialSelection);
   const [quantity, setQuantity] = useState(1);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [cartDialog, setCartDialog] = useState(false);
   const [barVisible, setBarVisible] = useState(false);
   const ctaRef = useRef<HTMLDivElement>(null);
 
@@ -142,11 +145,21 @@ export function ProductExperience({
     });
     try {
       // Only ids + quantity leave the browser. The server re-checks and prices everything.
-      const result = await addProductToCart({ productId: product.id, variantId: variant.id, quantity });
-      if (result.status === "CART_UNAVAILABLE") setCartDialog(true);
-      else if (result.status === "REJECTED") {
+      const result = await addProductToCart({
+        productId: product.id,
+        variantId: variant.id,
+        quantity,
+        cartVersion: cart.cart?.version ?? 0,
+        source: recommendation ? "CART_RECOMMENDATION" : "PRODUCT_PAGE",
+        recommendation,
+      });
+      if (result.status === "REJECTED") {
         setMessage(result.message);
         router.refresh(); // pick up the changed price / availability
+      } else if (result.result.currentUnitPricePaise !== undefined && result.result.currentUnitPricePaise !== variant.price.amountPaise) {
+        notify.warning("Added at an updated price", `The current price is ${formatPrice(result.result.currentUnitPricePaise)} per item.`);
+      } else {
+        notify.addedToCart(product.name);
       }
     } catch {
       setMessage("We couldn't check this item right now. Please try again.");
@@ -306,12 +319,6 @@ export function ProductExperience({
         </div>
       ) : null}
 
-      <ComingSoonDialog
-        open={cartDialog}
-        onOpenChange={setCartDialog}
-        feature={storefrontContent.cart.feature}
-        description={storefrontContent.cart.description}
-      />
     </div>
   );
 }

@@ -440,7 +440,7 @@ export const storefrontContent = {
   cart: {
     feature: "Checkout isn't open yet",
     description:
-      "The cart isn't connected, so this doesn't add anything and there is no item count. You can save a published piece to your wishlist if you're signed in.",
+      "Your cart is saved and prices are checked against the live catalog. You can add, edit, remove, or save items for later; checkout, payment, and order creation are not available yet.",
   },
 
   productMedia: {

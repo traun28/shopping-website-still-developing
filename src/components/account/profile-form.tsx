@@ -41,7 +41,7 @@ export function ProfileForm({ defaultName, defaultPhone }: { defaultName: string
         />
       </Field>
 
-      <Field label="Phone" error={fields?.phone} description="Used for delivery coordination.">
+      <Field label="Phone" error={fields?.phone} description="Optional contact number. Saving it does not verify the number.">
         <Input
           type="tel"
           name="phone"

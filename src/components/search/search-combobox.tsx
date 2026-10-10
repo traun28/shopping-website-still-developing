@@ -102,6 +102,7 @@ export function SearchCombobox({
 
     if (value.trim().length < 2) {
       setSuggestions([]);
+      setActiveIndex(-1);
       setLoading(false);
       return;
     }
@@ -121,9 +122,11 @@ export function SearchCombobox({
       // if this controller is still the current one.
       if (abortRef.current !== controller) return;
       setSuggestions(payload.data?.suggestions ?? []);
+      setActiveIndex(-1);
     } catch (error) {
       if ((error as Error).name === "AbortError") return;
       setSuggestions([]);
+      setActiveIndex(-1);
     } finally {
       if (abortRef.current === controller) setLoading(false);
     }
@@ -147,12 +150,6 @@ export function SearchCombobox({
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, []);
-
-  // Reset the active option whenever the list changes, so it never points at an
-  // item that no longer exists.
-  useEffect(() => {
-    setActiveIndex(-1);
-  }, [suggestions]);
 
   function submit(value: string) {
     const clean = value.trim();
@@ -184,6 +181,8 @@ export function SearchCombobox({
       } else if (query) {
         event.preventDefault();
         setQuery("");
+        setSuggestions([]);
+        setActiveIndex(-1);
       }
       return;
     }
@@ -269,6 +268,7 @@ export function SearchCombobox({
             autoFocus={autoFocus}
             onChange={(event) => {
               setQuery(event.target.value);
+              setActiveIndex(-1);
               setOpen(true);
             }}
             onFocus={() => setOpen(true)}
@@ -283,6 +283,8 @@ export function SearchCombobox({
               type="button"
               onClick={() => {
                 setQuery("");
+                setSuggestions([]);
+                setActiveIndex(-1);
                 inputRef.current?.focus();
               }}
               className="min-h-8 min-w-8 shrink-0 rounded-full text-smoke hover:text-ink"

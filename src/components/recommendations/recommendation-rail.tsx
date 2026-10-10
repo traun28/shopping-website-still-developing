@@ -138,8 +138,8 @@ export function RecommendationRail({
     const node = containerRef.current;
     if (!node) return;
     if (typeof IntersectionObserver === "undefined") {
-      void load();
-      return;
+      const fallbackLoad = window.setTimeout(() => void load(), 0);
+      return () => window.clearTimeout(fallbackLoad);
     }
     const observer = new IntersectionObserver(
       (entries) => {
@@ -270,16 +270,19 @@ export function RecommendationRail({
             key={item.productId}
             className={horizontal ? "w-[45vw] shrink-0 snap-start sm:w-56" : undefined}
           >
-            <a
-              href={productPath(product.slug)}
-              onClick={() => trackClick(item)}
-              className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
-            >
-              <ProductCard product={product} />
-              {item.explanation ? (
-                <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{item.explanation}</p>
-              ) : null}
-            </a>
+            <ProductCard
+              product={product}
+              href={`${productPath(product.slug)}?${new URLSearchParams({
+                recId: payload.recommendationId,
+                recType: payload.type,
+                recPosition: String(item.position),
+                recAlgorithm: payload.algorithmVersion,
+              }).toString()}`}
+              onProductClick={() => trackClick(item)}
+            />
+            {item.explanation ? (
+              <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{item.explanation}</p>
+            ) : null}
           </li>
         ))}
       </ul>

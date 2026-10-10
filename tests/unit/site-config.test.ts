@@ -31,8 +31,9 @@ describe("site configuration integrity", () => {
     mainNav.forEach((link) => expect(valid(link.href)).toBe(true));
   });
 
-  it("keeps unbuilt modules feature-flagged off", () => {
-    expect(siteConfig.features.cart).toBe(false);
+  it("enables the implemented cart while keeping checkout and payments unavailable", () => {
+    expect(siteConfig.features.cart).toBe(true);
+    expect(siteConfig.features.wishlist).toBe(true);
     expect(siteConfig.features.checkout).toBe(false);
     expect(siteConfig.features.payments).toBe(false);
     expect(siteConfig.features.newsletter).toBe(true);

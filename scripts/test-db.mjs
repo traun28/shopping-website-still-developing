@@ -16,6 +16,7 @@
  * they must be no-ops over an already-pushed schema.
  */
 import { spawn, spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -33,6 +34,9 @@ const MIGRATIONS = [
   "0006_product_intelligence.sql",
   "0007_search_discovery.sql",
   "0008_recommendation_engine.sql",
+  "0009_cart_wishlist_saved_items.sql",
+  "0010_customer_checkout_preparation.sql",
+  "0011_promotion_domain.sql",
 ];
 
 function log(message) {
@@ -61,12 +65,16 @@ export async function startTestDatabase() {
   // `drizzle-kit push` cannot introspect this PostgreSQL version, so the schema
   // is applied as generated DDL — which also validates that every Drizzle table
   // definition compiles to valid SQL.
-  const outDir = join(ROOT, ".test-db-schema");
-  const configPath = join(ROOT, ".test-db-drizzle.json");
+  // Each invocation gets private Drizzle scratch paths so parallel DB jobs do
+  // not remove each other's generated schema while they are being read.
+  const scratchName = `${process.pid}-${randomUUID()}`;
+  const outName = `.test-db-schema-${scratchName}`;
+  const outDir = join(ROOT, outName);
+  const configPath = join(ROOT, `.test-db-drizzle-${scratchName}.json`);
   rmSync(outDir, { recursive: true, force: true });
   writeFileSync(
     configPath,
-    JSON.stringify({ dialect: "postgresql", schema: "./src/db/schema/index.ts", out: "./.test-db-schema" }),
+    JSON.stringify({ dialect: "postgresql", schema: "./src/db/schema/index.ts", out: `./${outName}` }),
   );
   const gen = spawnSync("npx", ["drizzle-kit", "generate", `--config=${configPath}`, "--name=testdb"], {
     cwd: ROOT,
@@ -74,16 +82,22 @@ export async function startTestDatabase() {
   });
   if (gen.status !== 0) {
     process.stderr.write(`${gen.stdout ?? ""}${gen.stderr ?? ""}`);
+    rmSync(outDir, { recursive: true, force: true });
+    rmSync(configPath, { force: true });
     await teardown(pg, dataDir);
     throw new Error("drizzle-kit generate failed — the Drizzle schema does not compile to valid SQL");
   }
-  const schemaSql = readdirSync(outDir)
-    .filter((file) => file.endsWith(".sql"))
-    .sort()
-    .map((file) => readFileSync(join(outDir, file), "utf8"))
-    .join("\n");
-  rmSync(outDir, { recursive: true, force: true });
-  rmSync(configPath, { force: true });
+  let schemaSql;
+  try {
+    schemaSql = readdirSync(outDir)
+      .filter((file) => file.endsWith(".sql"))
+      .sort()
+      .map((file) => readFileSync(join(outDir, file), "utf8"))
+      .join("\n");
+  } finally {
+    rmSync(outDir, { recursive: true, force: true });
+    rmSync(configPath, { force: true });
+  }
 
   const schemaClient = pg.getPgClient(DB_NAME);
   await schemaClient.connect();

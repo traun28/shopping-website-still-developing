@@ -8,6 +8,8 @@
  */
 import "dotenv/config";
 import { randomBytes, scryptSync } from "node:crypto";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 import { and, eq } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { DEFAULT_COLORS, SIZE_CATALOG, tagSlug } from "@/lib/catalog-rules";
@@ -30,6 +32,17 @@ import {
   sizes,
   users,
 } from "@/db/schema";
+
+// Server services carry a Next.js-only import guard; the development seed is a
+// trusted Node entry point and exercises those same services directly.
+const require_ = createRequire(import.meta.url);
+const Module = require_("node:module") as { _resolveFilename: (...args: unknown[]) => string };
+const serverOnlyStub = fileURLToPath(new URL("../tests/mocks/server-only.ts", import.meta.url));
+const originalResolve = Module._resolveFilename;
+Module._resolveFilename = function patched(request: unknown, ...rest: unknown[]): string {
+  if (request === "server-only") return serverOnlyStub;
+  return (originalResolve as (r: unknown, ...a: unknown[]) => string).call(this, request, ...rest);
+};
 
 function hashDevPassword(plain: string): string {
   const salt = randomBytes(16).toString("hex");
@@ -91,6 +104,7 @@ async function seedOptions() {
 
 async function main() {
   console.log("Seeding Inkline development data…");
+  const { adjustInventory } = await import("@/services/catalog/inventory.service");
   await seedOptions();
   const now = new Date();
 
@@ -124,13 +138,30 @@ async function main() {
   console.log("  users ✓ (admin@inkline.in — dev password only, rotate before launch)");
 
   /* ── Category tree ──────────────────────────────────────────────── */
-  const cat = async (slug: string, name: string, description: string, parentId?: string, order = 0) =>
-    ensure({
+  const cat = async (slug: string, name: string, description: string, parentId?: string, order = 0) => {
+    const parent = parentId
+      ? (await db
+          .select({ path: categories.path, depth: categories.depth, ancestorIds: categories.ancestorIds })
+          .from(categories)
+          .where(eq(categories.id, parentId))
+          .limit(1))[0]
+      : null;
+    if (parentId && !parent) throw new Error(`Seed parent category ${parentId} was not found.`);
+    const path = parent ? `${parent.path}/${slug}` : slug;
+    const depth = parent ? parent.depth + 1 : 0;
+    const ancestorIds = parent
+      ? parent.ancestorIds
+        ? `${parent.ancestorIds},${parentId}`
+        : parentId!
+      : "";
+
+    return ensure({
       table: categories,
-      values: { slug, name, description, parentId, displayOrder: order, isActive: true },
+      values: { slug, name, description, parentId, path, depth, ancestorIds, displayOrder: order, isActive: true },
       target: categories.slug,
       selectBy: { column: categories.slug, value: slug },
     });
+  };
 
   const apparelId = await cat("apparel", "Apparel", "Clothing printed after you order.", undefined, 1);
   const accessoriesId = await cat("accessories", "Accessories", "Carry, sip and protect.", undefined, 2);
@@ -294,7 +325,7 @@ async function main() {
       : [{ sku: `INK-${prefix}-STD`, name: "Standard", size: undefined, color: undefined, colorCode: undefined }];
 
     for (const spec of variantSpecs) {
-      await ensure({
+      const variantId = await ensure({
         table: productVariants,
         values: {
           productId,
@@ -311,6 +342,18 @@ async function main() {
         target: productVariants.sku,
         selectBy: { column: productVariants.sku, value: spec.sku },
       });
+      await adjustInventory(
+        { id: adminId },
+        {
+          productId,
+          variantId,
+          operation: "STOCK_IN",
+          quantity: 10,
+          referenceType: "IMPORT_BATCH",
+          referenceId: `development-seed:${spec.sku}`,
+          reason: "Development seed opening inventory",
+        },
+      );
       variantCount += 1;
     }
   }

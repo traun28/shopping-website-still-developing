@@ -1,12 +1,16 @@
 import { z } from "zod";
-import { emailSchema, phoneSchema } from "@/validations/auth";
+import { emailSchema, internationalPhoneSchema } from "@/validations/auth";
+
+export { addressSchema, addressPatchSchema } from "@/validations/address";
+export type { AddressInput, AddressPatchInput } from "@/validations/address";
 
 /**
  * Account-domain validation — enforced on the server (mirrored in the
- * client only for feedback speed).
+ * client only for feedback speed). The address model is country-aware and
+ * keeps non-Indian administrative areas free-form.
  */
 
-/* Indian addresses are first-class; model stays international-ready. */
+/* Indian states remain available as optional suggestions in the UI. */
 export const INDIAN_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
   "Delhi (NCT)", "Goa", "Gujarat", "Haryana", "Himachal Pradesh",
@@ -16,25 +20,6 @@ export const INDIAN_STATES = [
   "Uttar Pradesh", "Uttarakhand", "West Bengal", "Puducherry", "Chandigarh",
   "Andaman & Nicobar Islands", "Dadra & Nagar Haveli and Daman & Diu", "Lakshadweep",
 ] as const;
-
-export const addressSchema = z.object({
-  fullName: z.string().trim().min(2, "Enter the recipient's full name.").max(80, "Keep the name under 80 characters."),
-  phone: z
-    .string()
-    .trim()
-    .min(10, "Enter a valid phone number.")
-    .max(16, "That phone number looks too long.")
-    .regex(/^\+?[0-9\s-]{10,16}$/, "Enter a valid phone number with country code."),
-  addressLine1: z.string().trim().min(4, "Enter your street address.").max(120),
-  addressLine2: z.string().trim().max(120).optional().or(z.literal("")),
-  landmark: z.string().trim().max(120).optional().or(z.literal("")),
-  city: z.string().trim().min(2, "Enter your city.").max(60),
-  state: z.string().trim().min(2, "Select your state.").max(60),
-  postalCode: z.string().trim().regex(/^[1-9]\d{5}$/, "Enter a valid 6-digit PIN code."),
-  country: z.string().trim().length(2).default("IN"),
-  label: z.enum(["HOME", "WORK", "OTHER"]).default("HOME"),
-  isDefault: z.boolean().default(false),
-});
 
 export const emailChangeRequestSchema = z.object({
   newEmail: emailSchema,
@@ -46,12 +31,18 @@ export const deactivateAccountSchema = z.object({
 });
 
 export const preferencesSchema = z.object({
-  marketingEmails: z.boolean(),
-  orderNotifications: z.boolean(),
-  promotionalNotifications: z.boolean(),
+  marketingEmails: z.boolean().default(false),
+  orderNotifications: z.boolean().default(true),
+  promotionalNotifications: z.boolean().default(false),
   language: z.enum(["en-IN", "hi-IN"]).default("en-IN"),
-  currency: z.literal("INR"),
+  currency: z.literal("INR").default("INR"),
+  measurementSystem: z.enum(["METRIC", "IMPERIAL"]).default("METRIC"),
 });
+
+export const preferencesPatchSchema = preferencesSchema.partial().refine(
+  (value) => Object.keys(value).length > 0,
+  "Choose at least one preference to update.",
+);
 
 export const avatarMetaSchema = z.object({
   type: z.enum(["image/jpeg", "image/png", "image/webp"], {
@@ -60,8 +51,7 @@ export const avatarMetaSchema = z.object({
   size: z.number().max(2 * 1024 * 1024, "Keep the image under 2 MB."),
 });
 
-export type AddressInput = z.infer<typeof addressSchema>;
 export type PreferencesInput = z.infer<typeof preferencesSchema>;
+export type PreferencesPatchInput = z.infer<typeof preferencesPatchSchema>;
 
-/** Loose international phone check used by the profile page. */
-export const internationalPhoneSchema = phoneSchema;
+export { internationalPhoneSchema };

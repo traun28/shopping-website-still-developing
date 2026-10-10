@@ -164,7 +164,13 @@ export function SearchResults() {
   }, [query, queryString]);
 
   useEffect(() => {
-    void load();
+    // Start API work as a scheduled task so this effect only coordinates
+    // lifecycle; loading state is updated outside the synchronous effect pass.
+    const requestStart = window.setTimeout(() => void load(), 0);
+    return () => {
+      window.clearTimeout(requestStart);
+      abortRef.current?.abort();
+    };
   }, [load]);
 
   /** Rewrite the URL, which is the single source of truth for search state. */

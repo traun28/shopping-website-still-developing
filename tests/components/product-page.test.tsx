@@ -10,9 +10,13 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const validateCartLineAction = vi.fn();
-vi.mock("@/server/actions/cart-actions", () => ({
-  validateCartLineAction: (input: unknown) => validateCartLineAction(input),
+const addProductToCart = vi.fn();
+const cartRefresh = vi.fn();
+vi.mock("@/lib/cart/client", () => ({
+  addProductToCart: (input: unknown) => addProductToCart(input),
+}));
+vi.mock("@/components/cart/cart-provider", () => ({
+  useCart: () => ({ cart: null, loading: false, refresh: cartRefresh }),
 }));
 vi.mock("@/server/actions/account-actions", () => ({
   toggleWishlistAction: vi.fn(async () => ({ ok: true, saved: true })),
@@ -25,7 +29,6 @@ import { ProductLoadError } from "@/components/product/product-load-error";
 import { ProductPageSkeleton, RelatedSkeleton } from "@/components/product/product-skeleton";
 import { SizeGuide } from "@/components/product/size-guide";
 import { registerAnalyticsSink } from "@/lib/analytics";
-import { registerCartAdapter } from "@/lib/cart/add-to-cart";
 import type { PdpImageDTO, PdpProductDTO, PdpVariantDTO } from "@/lib/catalog/pdp-dto";
 import { EMPTY_PRODUCT_DETAILS } from "@/lib/catalog/product-details";
 import { selectionFromParams } from "@/lib/catalog/variant-selection";
@@ -101,9 +104,10 @@ function renderExperience(p: ProductExperienceProduct = product(), params: { col
 beforeEach(() => {
   refresh.mockClear();
   push.mockClear();
-  validateCartLineAction.mockReset();
+  addProductToCart.mockReset();
+  addProductToCart.mockResolvedValue({ status: "REJECTED", message: "The cart could not be updated." });
+  cartRefresh.mockReset();
   registerAnalyticsSink(null);
-  registerCartAdapter(null);
   window.history.replaceState(null, "", "/product/ember-hoodie");
 });
 
@@ -330,49 +334,44 @@ describe("ProductExperience — quantity and add to cart", () => {
     expect(screen.getByRole("button", { name: "Decrease" })).toBeDisabled();
   });
 
-  it("sends only productId, variantId and quantity — never a price", async () => {
+  it("sends product and option identities plus quantity to the persistent cart boundary, never a price", async () => {
     const user = userEvent.setup();
-    validateCartLineAction.mockResolvedValue({ ok: false, reason: "NOT_FOUND", message: "This product or option is no longer available." });
     renderExperience(product(), { color: "black", size: "m" });
     await user.click(screen.getByRole("button", { name: "Increase" }));
     await user.click(screen.getByRole("button", { name: "Add to cart" }));
-    expect(validateCartLineAction).toHaveBeenCalledTimes(1);
-    expect(validateCartLineAction).toHaveBeenCalledWith({
+    await waitFor(() => expect(addProductToCart).toHaveBeenCalledTimes(1));
+    expect(addProductToCart).toHaveBeenCalledWith(expect.objectContaining({
       productId: "00000000-0000-4000-8000-000000000001",
       variantId: "v-bm",
       quantity: 2,
-    });
+      cartVersion: 0,
+      source: "PRODUCT_PAGE",
+    }));
+    const payload = addProductToCart.mock.calls[0]![0] as Record<string, unknown>;
+    expect(payload).not.toHaveProperty("price");
+    expect(payload).not.toHaveProperty("unitPricePaise");
+    expect(payload).not.toHaveProperty("compareAtPrice");
   });
 
-  it("shows the server's rejection and refreshes stale data", async () => {
+  it("shows the cart API's rejection and refreshes potentially stale product data", async () => {
     const user = userEvent.setup();
-    validateCartLineAction.mockResolvedValue({ ok: false, reason: "UNAVAILABLE", message: "This option is currently unavailable." });
+    addProductToCart.mockResolvedValue({ status: "REJECTED", message: "This option is currently unavailable." });
     renderExperience();
     await user.click(screen.getByRole("button", { name: "Add to cart" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("This option is currently unavailable.");
     expect(refresh).toHaveBeenCalled();
   });
 
-  it("is honest that there is no cart yet after server validation (no fake cart)", async () => {
+  it("only reports an add after the persistent cart API accepts the mutation", async () => {
     const user = userEvent.setup();
-    validateCartLineAction.mockResolvedValue({
-      ok: true,
-      item: { productId: "p", variantId: "v-bs", sku: "EH-BLA-S", productSlug: "ember-hoodie", productName: "Ember Hoodie", variantName: "Black / S", size: "S", color: "Black", imageUrl: null, quantity: 1, unitPricePaise: 149_900, compareAtPaise: null, lineTotalPaise: 149_900, currency: "INR" },
+    addProductToCart.mockResolvedValue({
+      status: "ADDED",
+      result: { itemId: "line-1", productId: "p", variantId: "v-bs", quantity: 1, version: 2, replayed: false, currentUnitPricePaise: 149_900 },
     });
     renderExperience();
     await user.click(screen.getByRole("button", { name: "Add to cart" }));
-    expect(await screen.findByRole("dialog")).toHaveTextContent(/isn't open yet|isn't connected/i);
-  });
-
-  it("hands verified data to a registered cart adapter", async () => {
-    const user = userEvent.setup();
-    const item = { productId: "p", variantId: "v-bs", sku: "EH-BLA-S", productSlug: "ember-hoodie", productName: "Ember Hoodie", variantName: "Black / S", size: "S", color: "Black", imageUrl: null, quantity: 1, unitPricePaise: 149_900, compareAtPaise: null, lineTotalPaise: 149_900, currency: "INR" };
-    validateCartLineAction.mockResolvedValue({ ok: true, item });
-    const addLine = vi.fn(async () => ({ ok: true as const }));
-    registerCartAdapter({ addLine });
-    renderExperience();
-    await user.click(screen.getByRole("button", { name: "Add to cart" }));
-    await waitFor(() => expect(addLine).toHaveBeenCalledWith(item));
+    await waitFor(() => expect(addProductToCart).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("alert")).toBeEmptyDOMElement();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 

@@ -175,6 +175,20 @@ export const catalogEventTypeEnum = pgEnum("catalog_event_type", [
   "BRAND_UPDATED",
   "BRAND_DELETED",
   "SEARCH_INDEX_REFRESHED",
+  "PROMOTION_CREATED",
+  "PROMOTION_UPDATED",
+  "PROMOTION_ACTIVATED",
+  "PROMOTION_PAUSED",
+  "PROMOTION_ARCHIVED",
+  "CAMPAIGN_CREATED",
+  "CAMPAIGN_UPDATED",
+  "CAMPAIGN_ACTIVATED",
+  "CAMPAIGN_PAUSED",
+  "CAMPAIGN_ARCHIVED",
+  "PROMOTION_RESERVED",
+  "PROMOTION_RELEASED",
+  "COUPON_APPLIED",
+  "COUPON_REMOVED",
 ]);
 
 export type CatalogEventType = (typeof catalogEventTypeEnum.enumValues)[number];
@@ -191,6 +205,25 @@ export const cartStatusEnum = pgEnum("cart_status", [
   "CONVERTED",
   "ABANDONED",
   "EXPIRED",
+  "MERGED",
+]);
+
+export const addressTypeEnum = pgEnum("address_type", ["HOME", "WORK", "OTHER"]);
+
+/**
+ * Checkout preparation only. PAYMENT_PENDING / COMPLETED are reserved for a
+ * future payment/order workflow and are not written by Part 15.
+ */
+export const checkoutStatusEnum = pgEnum("checkout_status", [
+  "CREATED",
+  "VALIDATING",
+  "NEEDS_ATTENTION",
+  "READY",
+  "PAYMENT_PENDING",
+  "COMPLETED",
+  "EXPIRED",
+  "CANCELLED",
+  "FAILED",
 ]);
 
 /* ── Orders (four independent status systems) ─────────────────────────── */
@@ -311,6 +344,31 @@ export const analyticsEventTypeEnum = pgEnum("analytics_event_type", [
   "CATEGORY_VIEW",
   "BRAND_VIEW",
   "FILTER_USED",
+  /* ── Part 14: persisted basket lifecycle signals ─────────────────────── */
+  "CART_CREATED",
+  "CART_ITEM_ADDED",
+  "CART_ITEM_UPDATED",
+  "CART_ITEM_REMOVED",
+  "CART_ITEM_SAVED",
+  "CART_ITEM_RESTORED",
+  "CART_MERGED",
+  "CART_RECONCILED",
+  "CART_ABANDONED",
+  "CART_CONVERTED",
+  "WISHLIST_TO_CART",
+  "CART_EXPIRED",
+  /* ── Part 15: checkout preparation (no payment/order side-effects) ────── */
+  "CHECKOUT_ADDRESS_SELECTED",
+  "CHECKOUT_ADDRESS_CHANGED",
+  "CHECKOUT_DELIVERY_SELECTED",
+  "CHECKOUT_REVALIDATED",
+  "CHECKOUT_NEEDS_ATTENTION",
+  "CHECKOUT_READY",
+  "CHECKOUT_CANCELLED",
+  "CHECKOUT_EXPIRED",
+  "CHECKOUT_FAILED",
+  "CHECKOUT_COUPON_APPLIED",
+  "CHECKOUT_COUPON_REMOVED",
 ]);
 
 /* ── Part 13: recommendations ─────────────────────────────────────────── */

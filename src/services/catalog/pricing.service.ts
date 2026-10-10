@@ -307,6 +307,75 @@ export async function quoteProductPrices(
   return out;
 }
 
+/**
+ * Quote a batch of specific purchasable variants in one authoritative pass.
+ *
+ * Cart, saved-item and wishlist reads use this instead of variant.price so
+ * product- and variant-level promotions, seller rules and tax estimates stay
+ * aligned with the existing pricing pipeline without an N+1 query per line.
+ */
+export async function quoteVariantPrices(
+  variantIds: readonly string[],
+  options: { context?: PriceContext } = {},
+  client: DbClient = db,
+): Promise<Map<string, ProductPricing>> {
+  const ids = [...new Set(variantIds)];
+  if (ids.length === 0) return new Map();
+
+  const variants = await client
+    .select({
+      variantId: productVariants.id,
+      productId: products.id,
+      price: productVariants.price,
+      compareAtPrice: productVariants.compareAtPrice,
+      productCompareAtPrice: products.compareAtPrice,
+      taxRateBp: products.taxRateBp,
+      sellerId: products.sellerId,
+    })
+    .from(productVariants)
+    .innerJoin(products, eq(products.id, productVariants.productId))
+    .where(inArray(productVariants.id, ids));
+  if (variants.length === 0) return new Map();
+
+  const productIds = [...new Set(variants.map((row) => row.productId))];
+  const ruleRows = await client
+    .select()
+    .from(productPriceRules)
+    .where(and(inArray(productPriceRules.productId, productIds), eq(productPriceRules.isActive, true)));
+  const rulesByProduct = new Map<string, PriceRuleRow[]>();
+  for (const row of ruleRows) {
+    const list = rulesByProduct.get(row.productId) ?? [];
+    list.push(row);
+    rulesByProduct.set(row.productId, list);
+  }
+
+  const out = new Map<string, ProductPricing>();
+  for (const variant of variants) {
+    const rules = (rulesByProduct.get(variant.productId) ?? [])
+      .filter((row) => row.variantId === null || row.variantId === variant.variantId)
+      .map(toRule);
+    const quote = quotePrice(variant.price, rules, {
+      compareAtPaise: variant.compareAtPrice ?? variant.productCompareAtPrice,
+      taxBasisPoints: variant.taxRateBp,
+      context: { ...options.context, sellerId: options.context?.sellerId ?? variant.sellerId },
+    });
+    out.set(variant.variantId, {
+      productId: variant.productId,
+      originalPaise: quote.originalPaise,
+      finalPaise: quote.finalPaise,
+      discountPaise: quote.discountPaise,
+      discountPercent: quote.discountPercent,
+      compareAtPaise: quote.compareAtPaise,
+      taxBasisPoints: quote.taxBasisPoints,
+      taxPaise: quote.taxPaise,
+      totalWithTaxPaise: quote.totalWithTaxPaise,
+      rulesApplied: quote.steps.filter((step) => step.discountPaise > 0).length,
+      steps: quote.steps,
+    });
+  }
+  return out;
+}
+
 /* ── writes ──────────────────────────────────────────────────────────── */
 
 export async function createPriceRule(

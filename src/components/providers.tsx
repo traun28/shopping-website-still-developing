@@ -4,6 +4,7 @@ import { MotionConfig } from "framer-motion";
 import { Toaster } from "sonner";
 import type { ReactNode } from "react";
 import { AnalyticsBridge } from "@/components/storefront/analytics-bridge";
+import { CartProvider } from "@/components/cart/cart-provider";
 
 /**
  * Client-wide providers. Kept deliberately thin: motion preferences +
@@ -13,7 +14,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <MotionConfig reducedMotion="user">
       <AnalyticsBridge />
-      {children}
+      <CartProvider>{children}</CartProvider>
       <Toaster
         position="bottom-right"
         gap={10}

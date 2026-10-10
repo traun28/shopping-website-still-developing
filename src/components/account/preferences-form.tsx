@@ -22,7 +22,7 @@ const preferenceRows = [
   {
     key: "marketingEmails" as const,
     label: "Marketing emails",
-    description: "New drops, artist stories and occasional offers.",
+    description: "Explicit opt-in for marketing email. Off by default; order updates are separate.",
   },
   {
     key: "orderNotifications" as const,
@@ -32,7 +32,7 @@ const preferenceRows = [
   {
     key: "promotionalNotifications" as const,
     label: "Promotional notifications",
-    description: "Coupon announcements and seasonal campaigns.",
+    description: "Optional promotional messages, separate from transactional order notices.",
   },
 ];
 
@@ -74,7 +74,7 @@ export function PreferencesForm({ initial }: { initial: PreferencesDTO }) {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <div>
           <p id="language-label" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-smoke">
             Language
@@ -98,8 +98,28 @@ export function PreferencesForm({ initial }: { initial: PreferencesDTO }) {
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-smoke">Currency</p>
           <input type="hidden" name="currency" value="INR" />
           <div className="mt-2 flex h-11 items-center rounded-pill border-[1.5px] border-clay bg-sand/40 px-5 text-sm text-smoke">
-            INR (₹) — India launch
+            INR (₹) — current storefront currency
           </div>
+        </div>
+        <div>
+          <p id="measurement-label" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-smoke">
+            Measurement system
+          </p>
+          <input type="hidden" name="measurementSystem" value={values.measurementSystem} />
+          <Select
+            value={values.measurementSystem}
+            onValueChange={(value) => setValues((v) => ({ ...v, measurementSystem: value as PreferencesDTO["measurementSystem"] }))}
+            disabled={pending}
+          >
+            <SelectTrigger aria-labelledby="measurement-label" className="mt-2 h-11 w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="METRIC">Metric (cm, kg)</SelectItem>
+              <SelectItem value="IMPERIAL">Imperial (in, lb)</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="mt-1 text-xs text-smoke">Saved for product measurements when they are displayed.</p>
         </div>
       </div>
 
