@@ -19,6 +19,8 @@ import { Container } from "@/components/ui/container";
 import { buildProductBreadcrumbs, similarProductsHref } from "@/lib/catalog/pdp-breadcrumbs";
 import type { PdpProductDTO } from "@/lib/catalog/pdp-dto";
 import { selectionFromParams } from "@/lib/catalog/variant-selection";
+import { resolveRecommendationType, type RecommendationType } from "@/lib/recommendations/types";
+import type { RecommendationAttribution } from "@/services/cart/types";
 import { plainText } from "@/lib/plain-text";
 import { breadcrumbJsonLd, productJsonLd, productMetadata } from "@/lib/seo";
 import { productPath } from "@/lib/storefront-paths";
@@ -34,6 +36,20 @@ type Props = { params: Promise<{ slug: string }>; searchParams: Promise<SearchPa
 function firstParam(value: string | string[] | undefined): string | null {
   const raw = Array.isArray(value) ? value[0] : value;
   return typeof raw === "string" ? raw.slice(0, 40) : null;
+}
+
+function recommendationFromParams(params: SearchParams): RecommendationAttribution | null {
+  const value = (key: string, max: number) => {
+    const raw = firstParam(params[key]);
+    return raw?.slice(0, max) ?? null;
+  };
+  const id = value("recId", 128);
+  const type = resolveRecommendationType(value("recType", 64));
+  const positionRaw = value("recPosition", 8);
+  const algorithmVersion = value("recAlgorithm", 80);
+  const position = positionRaw ? Number(positionRaw) : NaN;
+  if (!id || id.length < 8 || !type || !Number.isInteger(position) || position < 0 || position > 100 || !algorithmVersion) return null;
+  return { id, type: type as RecommendationType, position, algorithmVersion };
 }
 
 export async function generateMetadata({ params }: Pick<Props, "params">): Promise<Metadata> {
@@ -85,6 +101,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
     color: firstParam(query.color),
     size: firstParam(query.size),
   });
+  const recommendation = recommendationFromParams(query);
 
   // Only what the interactive area needs; long-form content stays on the server.
   const experience: ProductExperienceProduct = {
@@ -139,6 +156,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
             saved={savedIds.includes(product.id)}
             categoryLabel={categoryLabel}
             browseHref={similarProductsHref(product)}
+            recommendation={recommendation}
           >
             <ProductInfoSections product={product} />
           </ProductExperience>

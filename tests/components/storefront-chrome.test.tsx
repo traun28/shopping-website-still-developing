@@ -29,6 +29,10 @@ vi.mock("@/server/actions/auth-actions", () => ({
   logoutAction: vi.fn(),
 }));
 
+vi.mock("@/components/cart/cart-provider", () => ({
+  useCart: () => ({ cart: null, loading: false, refresh: vi.fn() }),
+}));
+
 const collection: StorefrontCollection = {
   slug: "limited-drop",
   name: "Limited Drop",
@@ -53,7 +57,7 @@ describe("storefront chrome", () => {
       "/login?redirect=%2Faccount%2Fwishlist",
     );
     expect(screen.getByRole("link", { name: "Login" })).toHaveAttribute("href", "/login");
-    const cart = screen.getByRole("button", { name: /checkout is not open yet/i });
+    const cart = screen.getByRole("button", { name: "Cart" });
     expect(cart.textContent).not.toMatch(/\b0\b/);
     expect(screen.getByRole("button", { name: "Open menu" }).className).toContain("lg:hidden");
   });
@@ -80,9 +84,9 @@ describe("storefront chrome", () => {
     expect(screen.getByRole("link", { name: "Limited Drop" })).toHaveAttribute("href", "/collection/limited-drop");
   });
 
-  it("does not invent a cart count when the feature is off", () => {
-    render(<CartButton count={0} />);
-    expect(screen.getByRole("button", { name: /checkout is not open yet/i })).toBeInTheDocument();
+  it("does not invent a cart count before the live cart has loaded", () => {
+    render(<CartButton count={null} />);
+    expect(screen.getByRole("button", { name: "Cart" })).toBeInTheDocument();
     expect(screen.queryByText("0")).not.toBeInTheDocument();
   });
 
@@ -124,7 +128,7 @@ describe("storefront chrome", () => {
         <CartButton />
       </>,
     );
-    const cart = screen.getByRole("button", { name: /checkout is not open yet/i });
+    const cart = screen.getByRole("button", { name: "Cart" });
     fireEvent.click(cart);
     expect(sink).not.toHaveBeenCalled();
 

@@ -6,10 +6,9 @@
  *   (schema at HEAD) + drizzle/0006..0008  ==  schema in working tree
  *
  * It builds two disposable databases — one from the Drizzle tables as they
- * exist now, one from the pre-migration schema plus the committed migration —
- * then diffs their columns, indexes and constraints. Any drift means the SQL
- * migration and the TypeScript schema disagree, and one of them would ship the
- * wrong shape.
+ * exist now, one from the pre-migration schema plus the committed migrations —
+ * then diffs their columns, indexes, enums and constraints. Any drift means
+ * the SQL migration and the TypeScript schema disagree.
  *
  *   npm run db:parity                # compares against HEAD
  *   npm run db:parity -- <git-ref>   # compares against another ref
@@ -28,11 +27,14 @@ const ROOT = resolve(import.meta.dirname, "..");
 const PORT = Number(process.env.PARITY_DB_PORT ?? 55440);
 const USER = "postgres";
 const PASSWORD = "postgres";
-// Part 11 and Part 12 migrations, applied in order on top of the schema at HEAD.
+// Part 11–15 migrations, applied in order on top of the schema at HEAD.
 const MIGRATIONS = [
   "0006_product_intelligence.sql",
   "0007_search_discovery.sql",
   "0008_recommendation_engine.sql",
+  "0009_cart_wishlist_saved_items.sql",
+  "0010_customer_checkout_preparation.sql",
+  "0011_promotion_domain.sql",
 ].map((name) => join(ROOT, "drizzle", name));
 
 /** Legitimately present only in the migration-driven database. */
@@ -107,6 +109,15 @@ async function describeSchema(client) {
   for (const row of constraints.rows) {
     facts.add(`constraint:${row.conname}|${row.def.replace(/"/g, "").replace(/\s+/g, " ").trim().toLowerCase()}`);
   }
+
+  const enums = await client.query(`
+    SELECT t.typname, string_agg(e.enumlabel, ',' ORDER BY e.enumsortorder) AS labels
+      FROM pg_type t
+      JOIN pg_enum e ON e.enumtypid = t.oid
+      JOIN pg_namespace n ON n.oid = t.typnamespace
+     WHERE n.nspname = 'public'
+     GROUP BY t.typname`);
+  for (const row of enums.rows) facts.add(`enum:${row.typname}|${row.labels}`);
 
   const extensions = await client.query("SELECT extname FROM pg_extension");
   for (const row of extensions.rows) facts.add(`extension:${row.extname}`);

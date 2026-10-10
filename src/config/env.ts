@@ -69,6 +69,15 @@ const serverSchema = z.object({
   NEXT_PUBLIC_GA_MEASUREMENT_ID: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
 
+  // Cart lifecycle (guest sessions expire sooner than account carts).
+  CART_GUEST_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+  CART_USER_TTL_DAYS: z.coerce.number().int().min(1).max(730).default(180),
+  CART_ABANDONMENT_MINUTES: z.coerce.number().int().min(5).max(43_200).default(60),
+
+  // Checkout preparation sessions expire; no inventory is reserved.
+  CHECKOUT_SESSION_TTL_MINUTES: z.coerce.number().int().min(5).max(240).default(45),
+  CHECKOUT_PII_RETENTION_DAYS: z.coerce.number().int().min(7).max(365).default(30),
+
   // Ops
   CRON_SECRET: z.string().optional(),
   IP_HASH_SALT: z.string().optional(),

@@ -14,9 +14,10 @@
  *                   and co-purchase, popularity/trending, recommendation
  *                   requests/events, configs, experiments, metrics
  *   commerce.ts     carts, cart items, wishlists
+ *   checkout.ts    owner-scoped checkout sessions, versioned state, snapshots
  *   orders.ts       orders (snapshots), order items, payments, refunds, shipments
  *   pod.ts          POD providers, product/variant mappings, POD orders, POD events
- *   engagement.ts   coupons (+ targeting/usages), reviews, notifications
+ *   engagement.ts   coupons, promotions/campaigns/reservations, reviews, notifications
  *   support.ts      support tickets, messages
  *   system.ts       newsletter, audit trail, analytics events
  */
@@ -30,6 +31,7 @@ export * from "./search";
 export * from "./recommendations";
 
 export * from "./commerce";
+export * from "./checkout";
 export * from "./orders";
 export * from "./pod";
 export * from "./engagement";

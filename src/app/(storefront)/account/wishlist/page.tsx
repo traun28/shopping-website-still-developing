@@ -3,9 +3,8 @@ import { redirect } from "next/navigation";
 import { ShoppingBag } from "lucide-react";
 import { AccountShell } from "@/components/layouts/account-shell";
 import { WishlistRemoveButton } from "@/components/account/wishlist-remove-button";
-import { ComingSoonDialog } from "@/components/layout/coming-soon-dialog";
+import { WishlistMoveButton } from "@/components/account/wishlist-move-button";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { EmptyWishlist } from "@/components/ui/empty-state";
 import { Price } from "@/components/ui/price";
 import { loadAccountContext } from "@/server/account-context";
@@ -58,9 +57,13 @@ export default async function WishlistPage() {
                     </p>
                   </div>
                   {item.availability === "ARCHIVED" ? (
-                    <Badge variant="sold-out">Archived</Badge>
+                    <Badge variant="sold-out">Unavailable</Badge>
+                  ) : item.availability === "UNAVAILABLE" ? (
+                    <Badge variant="sold-out">Out of stock</Badge>
+                  ) : item.availability === "LOW_STOCK" ? (
+                    <Badge variant="limited">Low stock</Badge>
                   ) : (
-                    <Badge variant="delivered">In stock</Badge>
+                    <Badge variant="delivered">Available</Badge>
                   )}
                 </div>
 
@@ -75,15 +78,12 @@ export default async function WishlistPage() {
                   <p className="mt-1.5 font-mono text-xs text-smoke">Price unavailable</p>
                 )}
 
-                <div className="mt-auto flex items-center gap-2 pt-3">
-                  <ComingSoonDialog
-                    feature="Move to cart opens at launch"
-                    description="Once checkout is live you can move wishlist items straight into your cart. For now, they're safely saved here."
-                    trigger={
-                      <Button variant="primary" size="sm" disabled={item.availability === "ARCHIVED"}>
-                        <ShoppingBag className="size-3.5" aria-hidden /> Move to cart
-                      </Button>
-                    }
+                <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
+                  <WishlistMoveButton
+                    itemId={item.itemId}
+                    productName={item.productName}
+                    variants={item.variants}
+                    preferredVariantId={item.preferredVariantId}
                   />
                   <WishlistRemoveButton itemId={item.itemId} productName={item.productName} />
                 </div>

@@ -7,9 +7,7 @@ import { Price } from "@/components/ui/price";
 import { ProductImage } from "@/components/ui/product-image";
 import { QuickViewDialog } from "@/components/cards/quick-view-dialog";
 import { Rating } from "@/components/ui/rating";
-import { ComingSoonDialog } from "@/components/layout/coming-soon-dialog";
 import { WishlistButton } from "@/components/storefront/wishlist-button";
-import { storefrontContent } from "@/content/storefront";
 import { productPath } from "@/lib/storefront-paths";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -43,13 +41,14 @@ export interface ProductCardProps {
   layout?: "grid" | "list";
   priority?: boolean;
   saved?: boolean;
+  onProductClick?: () => void;
 }
 
 /**
  * The one product card. Used on the homepage, category, collection,
  * search and recommendation surfaces.
  */
-export function ProductCard({ product, href, layout = "grid", priority, saved = false }: ProductCardProps) {
+export function ProductCard({ product, href, layout = "grid", priority, saved = false, onProductClick }: ProductCardProps) {
   const destination = href === null ? null : (href ?? productPath(product.slug));
   const soldOut = product.availability === "sold_out";
   const discount = discountPercent(product.pricePaise, product.compareAtPaise);
@@ -79,6 +78,7 @@ export function ProductCard({ product, href, layout = "grid", priority, saved = 
           data-track="PRODUCT_CLICK"
           data-track-id={product.slug}
           data-track-label={product.title}
+          onClick={onProductClick}
           className="block rounded-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame"
         >
           {image}
@@ -114,21 +114,16 @@ export function ProductCard({ product, href, layout = "grid", priority, saved = 
         />
       </div>
 
-      {!soldOut ? (
+      {!soldOut && destination ? (
         <div className="absolute inset-x-3 bottom-3 z-20">
-          <ComingSoonDialog
-            feature={storefrontContent.cart.feature}
-            description={storefrontContent.cart.description}
-            trigger={
-              <button
-                type="button"
-                className="flex min-h-10 w-full items-center justify-center gap-2 rounded-pill border-[1.5px] border-ink bg-ink px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-paper transition-colors hover:border-flame hover:bg-flame hover:text-on-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame"
-              >
-                <ShoppingBag className="size-3.5" aria-hidden />
-                Add to cart — {formatPrice(product.pricePaise)}
-              </button>
-            }
-          />
+          <Link
+            href={destination}
+            onClick={onProductClick}
+            className="flex min-h-10 w-full items-center justify-center gap-2 rounded-pill border-[1.5px] border-ink bg-ink px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-paper transition-colors hover:border-flame hover:bg-flame hover:text-on-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame"
+          >
+            <ShoppingBag className="size-3.5" aria-hidden />
+            Choose options · {formatPrice(product.pricePaise)}
+          </Link>
         </div>
       ) : null}
     </div>
@@ -148,6 +143,7 @@ export function ProductCard({ product, href, layout = "grid", priority, saved = 
                 data-track="PRODUCT_CLICK"
                 data-track-id={product.slug}
                 data-track-label={product.title}
+                onClick={onProductClick}
                 className="rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame"
               >
                 {title}

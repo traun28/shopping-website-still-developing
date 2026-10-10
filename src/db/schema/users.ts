@@ -1,5 +1,6 @@
-import { boolean, index, integer, pgTable, text, uniqueIndex, timestamp, uuid } from "drizzle-orm/pg-core";
-import { userRoleEnum, userStatusEnum } from "./enums";
+import { sql } from "drizzle-orm";
+import { boolean, check, index, integer, pgTable, text, uniqueIndex, timestamp, uuid } from "drizzle-orm/pg-core";
+import { addressTypeEnum, userRoleEnum, userStatusEnum } from "./enums";
 import { idColumn, timestamps } from "./helpers";
 
 /**
@@ -48,15 +49,29 @@ export const addresses = pgTable(
     phone: text("phone").notNull(),
     addressLine1: text("address_line1").notNull(),
     addressLine2: text("address_line2"),
+    locality: text("locality"),
     city: text("city").notNull(),
-    state: text("state").notNull(),
-    postalCode: text("postal_code").notNull(),
+    /** State, province, prefecture or region; optional outside jurisdictions that require it. */
+    state: text("state"),
+    postalCode: text("postal_code"),
     country: text("country").notNull().default("IN"),
     landmark: text("landmark"),
+    deliveryInstructions: text("delivery_instructions"),
+    addressType: addressTypeEnum("address_type").notNull().default("HOME"),
+    /** Legacy column name retained; this is the default shipping address. */
     isDefault: boolean("is_default").notNull().default(false),
+    isDefaultBilling: boolean("is_default_billing").notNull().default(false),
+    /** Optimistic concurrency for an address-book edit. */
+    version: integer("version").notNull().default(1),
     ...timestamps,
   },
-  (table) => [index("addresses_user_id_idx").on(table.userId)],
+  (table) => [
+    index("addresses_user_id_idx").on(table.userId),
+    uniqueIndex("addresses_user_default_shipping_key").on(table.userId).where(sql`${table.isDefault} = true`),
+    uniqueIndex("addresses_user_default_billing_key").on(table.userId).where(sql`${table.isDefaultBilling} = true`),
+    check("addresses_country_iso_code", sql`${table.country} ~ '^[A-Z]{2}$'`),
+    check("addresses_version_positive", sql`${table.version} > 0`),
+  ],
 );
 
 export type User = typeof users.$inferSelect;

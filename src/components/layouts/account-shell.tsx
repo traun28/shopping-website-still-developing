@@ -7,6 +7,7 @@ import {
   MapPin,
   Package,
   Settings,
+  SlidersHorizontal,
   UserRound,
   type LucideIcon,
 } from "lucide-react";
@@ -30,7 +31,8 @@ export const accountNav: { label: string; href: string; icon: LucideIcon; key: s
   { key: "addresses", label: "Addresses", href: "/account/addresses", icon: MapPin },
   { key: "notifications", label: "Notifications", href: "/account/notifications", icon: Bell },
   { key: "security", label: "Security", href: "/account/security", icon: KeyRound },
-  { key: "settings", label: "Settings", href: "/account/settings", icon: Settings },
+  { key: "preferences", label: "Preferences", href: "/account/preferences", icon: SlidersHorizontal },
+  { key: "settings", label: "Privacy & settings", href: "/account/settings", icon: Settings },
 ];
 
 export interface AccountIdentity {

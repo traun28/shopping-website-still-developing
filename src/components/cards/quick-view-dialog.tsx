@@ -8,15 +8,13 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger, DialogDescription } 
 import { Price } from "@/components/ui/price";
 import { ProductImage } from "@/components/ui/product-image";
 import { Rating } from "@/components/ui/rating";
-import { ComingSoonDialog } from "@/components/layout/coming-soon-dialog";
 import { WishlistButton } from "@/components/storefront/wishlist-button";
-import { storefrontContent } from "@/content/storefront";
 import { productPath } from "@/lib/storefront-paths";
 import type { ProductSummary } from "@/types";
 
 /**
- * Quick view. Wishlist uses the real account action. Cart stays closed
- * until checkout exists — the dialog says so instead of faking a bag.
+ * Quick view. Wishlist uses the real account action. Variant selection lives
+ * on the product page, so the CTA links there rather than guessing an option.
  */
 export function QuickViewDialog({
   product,
@@ -61,16 +59,12 @@ export function QuickViewDialog({
             </div>
 
             <div className="mt-1 flex flex-col gap-2.5">
-              <ComingSoonDialog
-                feature={storefrontContent.cart.feature}
-                description={storefrontContent.cart.description}
-                trigger={
-                  <Button variant="primary" size="lg" className="w-full">
-                    <ShoppingBag className="size-4" aria-hidden />
-                    Add to cart
-                  </Button>
-                }
-              />
+              <Button asChild variant="primary" size="lg" className="w-full">
+                <Link href={productPath(product.slug)}>
+                  <ShoppingBag className="size-4" aria-hidden />
+                  Choose options
+                </Link>
+              </Button>
               <WishlistButton
                 productId={product.id}
                 productTitle={product.title}

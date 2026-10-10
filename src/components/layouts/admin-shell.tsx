@@ -29,6 +29,7 @@ const adminNav: { section: string; items: { label: string; icon: LucideIcon; hre
     section: "Operations",
     items: [
       { label: "Orders", icon: ShoppingCart },
+      { label: "Checkout", href: "/admin/checkout", icon: ShoppingCart },
       { label: "Products", href: "/admin/products", icon: Package },
       { label: "Categories", href: "/admin/categories", icon: FolderOpen },
       { label: "Brands", href: "/admin/brands", icon: Tags },
@@ -43,7 +44,7 @@ const adminNav: { section: string; items: { label: string; icon: LucideIcon; hre
       { label: "Search", href: "/admin/search", icon: Search },
       { label: "Recommendations", href: "/admin/recommendations", icon: Sparkles },
       { label: "Customers", icon: Users },
-      { label: "Coupons", icon: Percent },
+      { label: "Promotions", href: "/admin/promotions", icon: Percent },
       { label: "Analytics", icon: BarChart3 },
     ],
   },

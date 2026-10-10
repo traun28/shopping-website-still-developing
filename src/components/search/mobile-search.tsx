@@ -33,15 +33,15 @@ interface MobileSearchProps {
   trending?: string[];
 }
 
-export function MobileSearch({ recent = [], trending = [] }: MobileSearchProps) {
+export function MobileSearch(props: MobileSearchProps) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  // A changed key resets the sheet when navigation happens without an effect
+  // that mirrors route state into local component state.
+  return <MobileSearchPanel key={pathname ?? ""} {...props} />;
+}
 
-  // Close when navigation happens, so the sheet cannot outlive the page it was
-  // opened from.
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+function MobileSearchPanel({ recent = [], trending = [] }: MobileSearchProps) {
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;

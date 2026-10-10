@@ -1,4 +1,5 @@
-import { boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { boolean, check, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { idColumn, timestamps } from "./helpers";
 import { users } from "./users";
 
@@ -68,19 +69,41 @@ export const userPreferences = pgTable(
     userId: uuid("user_id")
       .primaryKey()
       .references(() => users.id, { onDelete: "cascade" }),
-    marketingEmails: boolean("marketing_emails").notNull().default(true),
+    /** Explicit opt-in only; account creation and order updates do not imply consent. */
+    marketingEmails: boolean("marketing_emails").notNull().default(false),
     orderNotifications: boolean("order_notifications").notNull().default(true),
     promotionalNotifications: boolean("promotional_notifications").notNull().default(false),
     /** BCP-47, e.g. "en-IN" — international-ready. */
     language: text("language").notNull().default("en-IN"),
     currency: text("currency").notNull().default("INR"),
+    measurementSystem: text("measurement_system").notNull().default("METRIC"),
     /** Extensible for future privacy toggles without new columns. */
     extras: jsonb("extras").$type<Record<string, unknown>>().notNull().default({}),
     ...timestamps,
   },
-  (table) => [index("user_preferences_user_idx").on(table.userId)],
+  (table) => [
+    index("user_preferences_user_idx").on(table.userId),
+    check("user_preferences_measurement_system", sql`${table.measurementSystem} IN ('METRIC', 'IMPERIAL')`),
+  ],
+);
+
+/** Append-only evidence for explicit marketing email consent changes. */
+export const marketingConsentEvents = pgTable(
+  "marketing_consent_events",
+  {
+    ...idColumn,
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    consented: boolean("consented").notNull(),
+    source: text("source").notNull(),
+    policyVersion: text("policy_version").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [index("marketing_consent_events_user_created_idx").on(table.userId, table.createdAt)],
 );
 
 export type AuthToken = typeof authTokens.$inferSelect;
 export type AuthTokenType = (typeof authTokenTypeEnum.enumValues)[number];
 export type UserPreferences = typeof userPreferences.$inferSelect;
+export type MarketingConsentEvent = typeof marketingConsentEvents.$inferSelect;

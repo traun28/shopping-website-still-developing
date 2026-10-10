@@ -20,6 +20,15 @@ export const phoneSchema = z
   .optional()
   .or(z.literal(""));
 
+/** International display/contact number; verification stays on its secure flow. */
+export const internationalPhoneSchema = z
+  .string()
+  .trim()
+  .max(32, "That phone number looks too long.")
+  .regex(/^$|^[+]?[0-9][0-9 .()-]{5,30}$/, "Enter a valid international phone number.")
+  .optional()
+  .or(z.literal(""));
+
 export const passwordSchema = z
   .string()
   .min(10, "Use at least 10 characters.")
@@ -72,8 +81,13 @@ export const changePasswordSchema = z
 
 export const profileUpdateSchema = z.object({
   name: z.string().trim().min(2, "Enter your full name.").max(80, "Keep it under 80 characters."),
-  phone: phoneSchema,
+  phone: internationalPhoneSchema,
 });
+
+export const profilePatchSchema = profileUpdateSchema.partial().strict().refine(
+  (value) => Object.keys(value).length > 0,
+  "Choose at least one profile field to update.",
+);
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

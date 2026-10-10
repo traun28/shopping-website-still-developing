@@ -13,6 +13,7 @@ import { notify } from "@/lib/toast";
 import {
   deleteAddressAction,
   setDefaultAddressAction,
+  setDefaultBillingAddressAction,
 } from "@/server/actions/account-actions";
 import { cn } from "@/lib/utils";
 import type { Address } from "@/db/schema";
@@ -35,7 +36,8 @@ export function AddressBook({ initialAddresses }: { initialAddresses: Address[] 
   }
 
   async function handleDelete(id: string) {
-    const result = await deleteAddressAction(id);
+    const target = addresses.find((row) => row.id === id);
+    const result = await deleteAddressAction(id, target?.version);
     if (result.ok) {
       setAddresses((rows) => rows.filter((row) => row.id !== id));
       router.refresh();
@@ -50,7 +52,18 @@ export function AddressBook({ initialAddresses }: { initialAddresses: Address[] 
     if (result.ok) {
       setAddresses((rows) => rows.map((row) => ({ ...row, isDefault: row.id === id })));
       router.refresh();
-      notify.success("Default address updated");
+      notify.success("Default shipping address updated");
+    } else {
+      notify.error(result.error);
+    }
+  }
+
+  async function handleSetDefaultBilling(id: string) {
+    const result = await setDefaultBillingAddressAction(id);
+    if (result.ok) {
+      setAddresses((rows) => rows.map((row) => ({ ...row, isDefaultBilling: row.id === id })));
+      router.refresh();
+      notify.success("Default billing address updated");
     } else {
       notify.error(result.error);
     }
@@ -62,7 +75,7 @@ export function AddressBook({ initialAddresses }: { initialAddresses: Address[] 
         <EmptyState
           icon={MapPin}
           title="No addresses saved"
-          description="Save your shipping address once — checkout becomes one tap when it launches."
+          description="Save shipping and billing addresses to reuse them at checkout."
         />
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger asChild>
@@ -104,7 +117,7 @@ export function AddressBook({ initialAddresses }: { initialAddresses: Address[] 
             key={address.id}
             className={cn(
               "flex flex-col gap-4 rounded-card border-[1.5px] bg-cream p-5 transition-colors",
-              address.isDefault ? "border-flame" : "border-clay",
+              address.isDefault || address.isDefaultBilling ? "border-flame" : "border-clay",
             )}
           >
             <div className="flex items-start justify-between gap-3">
@@ -119,12 +132,16 @@ export function AddressBook({ initialAddresses }: { initialAddresses: Address[] 
                   </p>
                 </div>
               </div>
-              {address.isDefault ? <Badge variant="new">Default</Badge> : null}
+              <div className="flex flex-wrap justify-end gap-1.5">
+                {address.isDefault ? <Badge variant="new">Default shipping</Badge> : null}
+                {address.isDefaultBilling ? <Badge variant="outline">Default billing</Badge> : null}
+              </div>
             </div>
 
             <address className="text-sm not-italic leading-relaxed text-ink/80">
               {address.addressLine1}
               {address.addressLine2 ? `, ${address.addressLine2}` : ""}
+              {address.locality ? `, ${address.locality}` : ""}
               <br />
               {address.landmark ? (
                 <>
@@ -132,7 +149,7 @@ export function AddressBook({ initialAddresses }: { initialAddresses: Address[] 
                   <br />
                 </>
               ) : null}
-              {address.city}, {address.state} — {address.postalCode}
+              {address.city}{address.state ? `, ${address.state}` : ""}{address.postalCode ? ` ${address.postalCode}` : ""}
               <br />
               {address.country}
             </address>
@@ -157,7 +174,12 @@ export function AddressBook({ initialAddresses }: { initialAddresses: Address[] 
 
               {address.isDefault ? null : (
                 <Button variant="ghost" size="sm" onClick={() => handleSetDefault(address.id)}>
-                  <Star className="size-3.5" aria-hidden /> Set default
+                  <Star className="size-3.5" aria-hidden /> Default shipping
+                </Button>
+              )}
+              {address.isDefaultBilling ? null : (
+                <Button variant="ghost" size="sm" onClick={() => handleSetDefaultBilling(address.id)}>
+                  <Star className="size-3.5" aria-hidden /> Default billing
                 </Button>
               )}
 

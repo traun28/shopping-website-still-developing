@@ -386,19 +386,21 @@ export async function changePassword(
 
 export async function updateProfile(
   userId: string,
-  input: { name: string; phone?: string | null },
+  input: { name?: string; phone?: string | null },
   context: AuthRequestContext = {},
 ): Promise<void> {
-  await db
-    .update(users)
-    .set({ name: input.name.trim(), phone: input.phone?.trim() || null })
-    .where(eq(users.id, userId));
+  const values: Partial<typeof users.$inferInsert> = {};
+  if (input.name !== undefined) values.name = input.name.trim();
+  if (input.phone !== undefined) values.phone = input.phone?.trim() || null;
+  const fields = Object.keys(values);
+  if (fields.length === 0) throw new ValidationError("Choose at least one profile field to update.");
+  await db.update(users).set(values).where(eq(users.id, userId));
   await writeAudit({
     action: "user.profile_updated",
     entityType: "user",
     entityId: userId,
     actorId: userId,
-    metadata: { fields: ["name", ...(input.phone !== undefined ? ["phone"] : [])] },
+    metadata: { fields },
     ip: context.ip,
     userAgent: context.userAgent,
   });

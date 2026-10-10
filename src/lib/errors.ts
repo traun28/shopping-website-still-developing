@@ -51,6 +51,18 @@ export class ForbiddenError extends AppError {
   }
 }
 
+export class ConflictError extends AppError {
+  constructor(message = "This item changed in another request. Refresh and try again.", code = "CONFLICT") {
+    super(message, { status: 409, code });
+  }
+}
+
+export class InsufficientStockError extends ConflictError {
+  constructor(message = "There isn't enough stock for that quantity.") {
+    super(message, "INSUFFICIENT_STOCK");
+  }
+}
+
 export class IntegrationError extends AppError {
   constructor(message = "An external service is unavailable right now.", cause?: unknown) {
     super(message, { status: 502, code: "INTEGRATION_ERROR", cause });

@@ -72,7 +72,7 @@ export const siteConfig = {
   features: {
     newsletter: true,
     catalogSearch: true, // client-side preview search over sample catalogue
-    cart: false,
+    cart: true,
     wishlist: true,
     customerAccounts: true,
     checkout: false,

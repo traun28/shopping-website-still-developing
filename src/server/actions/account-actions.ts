@@ -15,6 +15,7 @@ import {
   createAddress,
   deleteAddress,
   setDefaultAddress,
+  setDefaultBillingAddress,
   updateAddress,
 } from "@/services/address.service";
 import {
@@ -74,8 +75,11 @@ function fail(error: unknown): ActionResult {
 
 async function parse<S extends ZodType>(schema: S, formData: FormData) {
   const raw: Record<string, unknown> = Object.fromEntries(formData.entries());
-  for (const key of ["isDefault", "marketingEmails", "orderNotifications", "promotionalNotifications"]) {
+  for (const key of ["isDefault", "isDefaultShipping", "isDefaultBilling", "marketingEmails", "orderNotifications", "promotionalNotifications"]) {
     if (key in raw) raw[key] = raw[key] === "true" || raw[key] === "on";
+  }
+  if (typeof raw.expectedVersion === "string" && raw.expectedVersion.trim()) {
+    raw.expectedVersion = Number(raw.expectedVersion);
   }
   const parsed = schema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, result: zodFailure(parsed.error) };
@@ -90,8 +94,13 @@ export async function createAddressAction(_prev: unknown, formData: FormData): P
   const parsed = await parse(addressSchema, formData);
   if (!parsed.ok) return parsed.result;
   try {
-    await createAddress(userId, parsed.data);
-    return { ok: true, message: "Address saved." };
+    const result = await createAddress(userId, parsed.data);
+    return {
+      ok: true,
+      message: result.possibleDuplicate
+        ? "Address saved. It resembles another saved address; nothing was merged."
+        : "Address saved.",
+    };
   } catch (error) {
     return fail(error);
   }
@@ -103,18 +112,23 @@ export async function updateAddressAction(addressId: string, _prev: unknown, for
   const parsed = await parse(addressSchema, formData);
   if (!parsed.ok) return parsed.result;
   try {
-    await updateAddress(userId, addressId, parsed.data);
-    return { ok: true, message: "Address updated." };
+    const result = await updateAddress(userId, addressId, parsed.data, { expectedVersion: parsed.data.expectedVersion });
+    return {
+      ok: true,
+      message: result.possibleDuplicate
+        ? "Address updated. It resembles another saved address; nothing was merged."
+        : "Address updated.",
+    };
   } catch (error) {
     return fail(error);
   }
 }
 
-export async function deleteAddressAction(addressId: string): Promise<ActionResult> {
+export async function deleteAddressAction(addressId: string, expectedVersion?: number): Promise<ActionResult> {
   const userId = await authedUserId();
   if (!userId) return SESSION_ERROR;
   try {
-    await deleteAddress(userId, addressId);
+    await deleteAddress(userId, addressId, { expectedVersion });
     return { ok: true, message: "Address removed." };
   } catch (error) {
     return fail(error);
@@ -126,7 +140,18 @@ export async function setDefaultAddressAction(addressId: string): Promise<Action
   if (!userId) return SESSION_ERROR;
   try {
     await setDefaultAddress(userId, addressId);
-    return { ok: true, message: "Default address updated." };
+    return { ok: true, message: "Default shipping address updated." };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function setDefaultBillingAddressAction(addressId: string): Promise<ActionResult> {
+  const userId = await authedUserId();
+  if (!userId) return SESSION_ERROR;
+  try {
+    await setDefaultBillingAddress(userId, addressId);
+    return { ok: true, message: "Default billing address updated." };
   } catch (error) {
     return fail(error);
   }
